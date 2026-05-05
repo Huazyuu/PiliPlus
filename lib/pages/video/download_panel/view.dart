@@ -416,6 +416,7 @@ class _DownloadPanelState extends State<DownloadPanel> {
             videoDetail: parent == null ? widget.videoDetail : null,
             videoArc: parent,
             audioQuality: _audioQuality,
+            customAudioPath: Pref.audioDownloadPath,
           );
           break;
         case ugc.EpisodeItem episode:
@@ -423,6 +424,7 @@ class _DownloadPanelState extends State<DownloadPanel> {
             page: episode.pages!.first,
             videoArc: episode,
             audioQuality: _audioQuality,
+            customAudioPath: Pref.audioDownloadPath,
           );
           break;
         case pgc.EpisodeItem episode:
@@ -431,6 +433,7 @@ class _DownloadPanelState extends State<DownloadPanel> {
             pgcItem: widget.pgcItem!,
             episode: episode,
             audioQuality: _audioQuality,
+            customAudioPath: Pref.audioDownloadPath,
           );
           break;
       }
