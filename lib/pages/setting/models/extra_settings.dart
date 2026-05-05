@@ -69,6 +69,12 @@ List<SettingsModel> get extraSettings => [
       leading: const Icon(Icons.storage),
       onTap: _showDownPathDialog,
     ),
+    NormalModel(
+      title: '音频下载路径',
+      getSubtitle: () => Pref.audioDownloadPath ?? downloadPath,
+      leading: const Icon(Icons.music_note),
+      onTap: _showAudioDownPathDialog,
+    ),
   ],
   SplitModel(
     normalModel: const NormalModel.split(
@@ -756,6 +762,50 @@ void _showDownPathDialog(BuildContext context, VoidCallback setState) {
               setState();
               Get.find<DownloadService>().initDownloadList();
               GStorage.setting.put(SettingBoxKey.downloadPath, path);
+            },
+            dense: true,
+            title: const Text('设置新路径', style: TextStyle(fontSize: 14)),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+void _showAudioDownPathDialog(BuildContext context, VoidCallback setState) {
+  final currentPath = Pref.audioDownloadPath ?? downloadPath;
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      clipBehavior: Clip.hardEdge,
+      contentPadding: const EdgeInsets.symmetric(vertical: 12),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            onTap: () {
+              Get.back();
+              Utils.copyText(currentPath);
+            },
+            dense: true,
+            title: const Text('复制', style: TextStyle(fontSize: 14)),
+          ),
+          ListTile(
+            onTap: () {
+              Get.back();
+              GStorage.setting.delete(SettingBoxKey.audioDownloadPath);
+              setState();
+            },
+            dense: true,
+            title: const Text('重置为默认', style: TextStyle(fontSize: 14)),
+          ),
+          ListTile(
+            onTap: () async {
+              Get.back();
+              final path = await FilePicker.getDirectoryPath();
+              if (path == null || path == currentPath) return;
+              GStorage.setting.put(SettingBoxKey.audioDownloadPath, path);
+              setState();
             },
             dense: true,
             title: const Text('设置新路径', style: TextStyle(fontSize: 14)),
