@@ -679,26 +679,29 @@ class DownloadService extends GetxService {
     _updateCurStatus(DownloadStatus.convertingAudio);
 
     final videoDir = Directory(path.join(entry.entryDirPath, entry.typeTag));
-    final outputPath = path.join(videoDir.path, PathUtils.audioName);
+    final m4aPath = path.join(videoDir.path, PathUtils.audioName);
+    final mp3Path = path.join(videoDir.path, PathUtils.audioMp3Name);
 
-    bool success = false;
+    // Step 1: remux to m4a
+    bool m4aSuccess = false;
     if (entry.mediaType == 2) {
-      // Type2: m4s -> mp3
       final inputPath = path.join(videoDir.path, PathUtils.audioNameType2);
-      success = await AudioConverter.convertM4sToMp3(inputPath, outputPath);
-      if (success) {
-        await File(inputPath).tryDel();
-      }
+      m4aSuccess = await AudioConverter.convertM4sToM4a(inputPath, m4aPath);
+      if (m4aSuccess) await File(inputPath).tryDel();
     } else {
-      // Type1: 0.mp4 -> mp3
       final inputPath = path.join(videoDir.path, PathUtils.videoNameType1);
-      success = await AudioConverter.extractAudioFromVideo(inputPath, outputPath);
-      if (success) {
-        await File(inputPath).tryDel();
-      }
+      m4aSuccess = await AudioConverter.extractAudioFromVideo(inputPath, m4aPath);
+      if (m4aSuccess) await File(inputPath).tryDel();
     }
 
-    if (!success) {
+    if (!m4aSuccess) {
+      _updateCurStatus(DownloadStatus.failConvertAudio);
+      return;
+    }
+
+    // Step 2: m4a -> mp3 (keep m4a)
+    final mp3Success = await AudioConverter.convertM4aToMp3(m4aPath, mp3Path);
+    if (!mp3Success) {
       _updateCurStatus(DownloadStatus.failConvertAudio);
       return;
     }

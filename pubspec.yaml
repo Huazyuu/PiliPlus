@@ -126,8 +126,11 @@ dependencies:
   audio_service: ^0.18.15
   audio_session: ^0.2.2
 
-  # 音频转换 (原版 ffmpeg_kit 在 Android 16 上崩溃，改用 MediaCodec)
-  # ffmpeg_kit_flutter_new: ^4.1.0
+  # 音频转换: AAC -> MP3
+  flutter_lame:
+    git:
+      url: https://github.com/Huazyuu/flutter_lame.git
+      ref: main
 
   # 音量、亮度、屏幕控制
   flutter_volume_controller: ^1.3.3

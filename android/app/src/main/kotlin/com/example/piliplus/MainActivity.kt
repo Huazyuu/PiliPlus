@@ -207,6 +207,20 @@ class MainActivity : AudioServiceActivity() {
                     }.start()
                 }
 
+                "decodeAacToPcm" -> {
+                    val inputPath = call.argument<String>("inputPath")!!
+                    val outputPath = call.argument<String>("outputPath")!!
+                    Thread {
+                        try {
+                            val success = decodeAacToPcm(inputPath, outputPath)
+                            runOnUiThread { result.success(success) }
+                        } catch (e: Exception) {
+                            android.util.Log.e("PiliPlus", "decodeAacToPcm error: ${e.message}", e)
+                            runOnUiThread { result.success(false) }
+                        }
+                    }.start()
+                }
+
                 else -> result.notImplemented()
             }
         }
@@ -328,6 +342,95 @@ class MainActivity : AudioServiceActivity() {
             return outputExists
         } catch (e: Exception) {
             android.util.Log.e("PiliPlus", "convertAudioFile error: ${e.message}", e)
+            try { extractor.release() } catch (_: Exception) {}
+            return false
+        }
+    }
+
+    private fun decodeAacToPcm(inputPath: String, outputPath: String): Boolean {
+        val extractor = MediaExtractor()
+        try {
+            extractor.setDataSource(inputPath)
+
+            var audioTrackIndex = -1
+            var audioFormat: MediaFormat? = null
+            for (i in 0 until extractor.trackCount) {
+                val format = extractor.getTrackFormat(i)
+                val mime = format.getString(MediaFormat.KEY_MIME) ?: continue
+                if (mime.startsWith("audio/")) {
+                    audioTrackIndex = i
+                    audioFormat = format
+                }
+            }
+            if (audioTrackIndex < 0 || audioFormat == null) {
+                extractor.release()
+                return false
+            }
+
+            extractor.selectTrack(audioTrackIndex)
+
+            val decoder = MediaCodec.createDecoderByType(
+                audioFormat.getString(MediaFormat.KEY_MIME)!!
+            )
+            decoder.configure(audioFormat, null, null, 0)
+            decoder.start()
+
+            val bufferInfo = MediaCodec.BufferInfo()
+            val pcmBuffer = ByteBuffer.allocate(1024 * 1024)
+            val outputFile = File(outputPath)
+            val outputStream = outputFile.outputStream()
+
+            var inputDone = false
+            var outputDone = false
+
+            while (!outputDone) {
+                // Feed input
+                if (!inputDone) {
+                    val inputIndex = decoder.dequeueInputBuffer(10000)
+                    if (inputIndex >= 0) {
+                        val inputBuffer = decoder.getInputBuffer(inputIndex)!!
+                        val sampleSize = extractor.readSampleData(inputBuffer, 0)
+                        if (sampleSize < 0) {
+                            decoder.queueInputBuffer(
+                                inputIndex, 0, 0, 0,
+                                MediaCodec.BUFFER_FLAG_END_OF_STREAM
+                            )
+                            inputDone = true
+                        } else {
+                            decoder.queueInputBuffer(
+                                inputIndex, 0, sampleSize,
+                                extractor.sampleTime, 0
+                            )
+                            extractor.advance()
+                        }
+                    }
+                }
+
+                // Drain output
+                val outputIndex = decoder.dequeueOutputBuffer(bufferInfo, 10000)
+                if (outputIndex >= 0) {
+                    if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
+                        outputDone = true
+                    }
+                    if (bufferInfo.size > 0) {
+                        val outputBuffer = decoder.getOutputBuffer(outputIndex)!!
+                        val pcmBytes = ByteArray(bufferInfo.size)
+                        outputBuffer.get(pcmBytes)
+                        outputStream.write(pcmBytes)
+                    }
+                    decoder.releaseOutputBuffer(outputIndex, false)
+                }
+            }
+
+            outputStream.flush()
+            outputStream.close()
+            decoder.stop()
+            decoder.release()
+            extractor.release()
+
+            return outputFile.exists() && outputFile.length() > 0
+        } catch (e: Exception) {
+            android.util.Log.e("PiliPlus", "decodeAacToPcm error: ${e.message}", e)
             try { extractor.release() } catch (_: Exception) {}
             return false
         }
