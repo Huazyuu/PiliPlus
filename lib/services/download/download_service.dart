@@ -6,6 +6,7 @@ import 'package:PiliPlus/grpc/dm.dart';
 import 'package:PiliPlus/http/download.dart';
 import 'package:PiliPlus/http/init.dart';
 import 'package:PiliPlus/http/loading_state.dart';
+import 'package:PiliPlus/models/common/video/audio_quality.dart';
 import 'package:PiliPlus/models/common/video/video_quality.dart';
 import 'package:PiliPlus/models_new/download/bili_download_entry_info.dart';
 import 'package:PiliPlus/models_new/download/bili_download_media_file_info.dart';
@@ -16,6 +17,7 @@ import 'package:PiliPlus/models_new/video/video_detail/episode.dart' as ugc;
 import 'package:PiliPlus/models_new/video/video_detail/page.dart';
 import 'package:PiliPlus/pages/danmaku/controller.dart';
 import 'package:PiliPlus/services/download/download_manager.dart';
+import 'package:PiliPlus/utils/audio_converter.dart';
 import 'package:PiliPlus/utils/extension/file_ext.dart';
 import 'package:PiliPlus/utils/extension/string_ext.dart';
 import 'package:PiliPlus/utils/id_utils.dart';
@@ -237,6 +239,139 @@ class DownloadService extends GetxService {
     _createDownload(entry);
   }
 
+  void downloadAudio({
+    required Part page,
+    VideoDetailData? videoDetail,
+    ugc.EpisodeItem? videoArc,
+    required AudioQuality audioQuality,
+    String? customAudioPath,
+  }) {
+    final cid = page.cid!;
+    if (downloadList.any((e) => e.cid == cid && e.isAudioOnly)) {
+      return;
+    }
+    if (waitDownloadQueue.any((e) => e.cid == cid && e.isAudioOnly)) {
+      return;
+    }
+    final pageData = PageInfo(
+      cid: cid,
+      page: page.page!,
+      from: page.from,
+      part: page.part,
+      vid: page.vid,
+      hasAlias: false,
+      tid: 0,
+      width: 0,
+      height: 0,
+      rotate: 0,
+      downloadTitle: '音频已缓存完成',
+      downloadSubtitle: videoDetail?.title ?? videoArc!.title,
+    );
+    final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final entry = BiliDownloadEntryInfo(
+      mediaType: 2,
+      hasDashAudio: false,
+      isCompleted: false,
+      totalBytes: 0,
+      downloadedBytes: 0,
+      title: videoDetail?.title ?? videoArc!.title!,
+      typeTag: audioQuality.code.toString(),
+      cover: (videoDetail?.pic ?? videoArc!.cover!).http2https,
+      preferedVideoQuality: 0,
+      qualityPithyDescription: audioQuality.desc,
+      guessedTotalBytes: 0,
+      totalTimeMilli: (page.duration ?? 0) * 1000,
+      danmakuCount:
+          videoDetail?.stat?.danmaku ?? videoArc?.arc?.stat?.danmaku ?? 0,
+      timeUpdateStamp: currentTime,
+      timeCreateStamp: currentTime,
+      canPlayInAdvance: true,
+      interruptTransformTempFile: false,
+      avid: videoDetail?.aid ?? videoArc!.aid!,
+      spid: 0,
+      seasonId: null,
+      ep: null,
+      source: null,
+      bvid: videoDetail?.bvid ?? videoArc!.bvid!,
+      ownerId: videoDetail?.owner?.mid ?? videoArc?.arc?.author?.mid,
+      ownerName: videoDetail?.owner?.name ?? videoArc?.arc?.author?.name,
+      pageData: pageData,
+      isAudioOnly: true,
+      audioQuality: audioQuality.code,
+      audioPath: customAudioPath,
+    );
+    _createDownload(entry);
+  }
+
+  void downloadAudioBangumi({
+    required int index,
+    required PgcInfoModel pgcItem,
+    required pgc.EpisodeItem episode,
+    required AudioQuality audioQuality,
+    String? customAudioPath,
+  }) {
+    final cid = episode.cid!;
+    if (downloadList.any((e) => e.cid == cid && e.isAudioOnly)) {
+      return;
+    }
+    if (waitDownloadQueue.any((e) => e.cid == cid && e.isAudioOnly)) {
+      return;
+    }
+    final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final source = SourceInfo(avId: episode.aid!, cid: cid);
+    final ep = EpInfo(
+      avId: source.avId,
+      page: index,
+      danmaku: source.cid,
+      cover: episode.cover!,
+      episodeId: episode.id!,
+      index: episode.title!,
+      indexTitle: episode.longTitle ?? '',
+      showTitle: episode.showTitle,
+      from: episode.from ?? 'bangumi',
+      seasonType: pgcItem.type ?? (episode.from == 'pugv' ? -1 : 0),
+      width: 0,
+      height: 0,
+      rotate: 0,
+      link: episode.link ?? '',
+      bvid: episode.bvid ?? IdUtils.av2bv(source.avId),
+      sortIndex: index,
+    );
+    final entry = BiliDownloadEntryInfo(
+      mediaType: 2,
+      hasDashAudio: false,
+      isCompleted: false,
+      totalBytes: 0,
+      downloadedBytes: 0,
+      title: pgcItem.seasonTitle ?? pgcItem.title ?? '',
+      typeTag: audioQuality.code.toString(),
+      cover: episode.cover!,
+      preferedVideoQuality: 0,
+      qualityPithyDescription: audioQuality.desc,
+      guessedTotalBytes: 0,
+      totalTimeMilli:
+          (episode.duration ?? 0) * (episode.from == 'pugv' ? 1000 : 1),
+      danmakuCount: pgcItem.stat?.danmaku ?? 0,
+      timeUpdateStamp: currentTime,
+      timeCreateStamp: currentTime,
+      canPlayInAdvance: true,
+      interruptTransformTempFile: false,
+      spid: 0,
+      seasonId: pgcItem.seasonId!.toString(),
+      bvid: episode.bvid ?? IdUtils.av2bv(source.avId),
+      avid: source.avId,
+      ep: ep,
+      source: source,
+      ownerId: pgcItem.upInfo?.mid,
+      ownerName: pgcItem.upInfo?.uname,
+      pageData: null,
+      isAudioOnly: true,
+      audioQuality: audioQuality.code,
+      audioPath: customAudioPath,
+    );
+    _createDownload(entry);
+  }
+
   Future<void> _createDownload(BiliDownloadEntryInfo entry) async {
     final entryDir = await _getDownloadEntryDir(entry);
     final entryJsonFile = File(path.join(entryDir.path, _entryFile));
@@ -261,8 +396,11 @@ class DownloadService extends GetxService {
       dirName = entry.avid.toString();
       pageDirName = 'c_${page.cid}';
     }
+    final basePath = entry.isAudioOnly && entry.audioPath != null
+        ? entry.audioPath!
+        : await _getDownloadPath();
     final pageDir = Directory(
-      path.join(await _getDownloadPath(), dirName, pageDirName),
+      path.join(basePath, dirName, pageDirName),
     );
     if (!pageDir.existsSync()) {
       await pageDir.create(recursive: true);
@@ -377,6 +515,10 @@ class DownloadService extends GetxService {
         ep: entry.ep,
         source: entry.source,
         pageData: entry.pageData,
+        audioOnly: entry.isAudioOnly,
+        audioQuality: entry.audioQuality != null
+            ? AudioQuality.fromCode(entry.audioQuality!)
+            : null,
       );
 
       final videoDir = Directory(path.join(entry.entryDirPath, entry.typeTag));
@@ -394,43 +536,70 @@ class DownloadService extends GetxService {
         return;
       }
 
-      switch (mediaFileInfo) {
-        case Type1 mediaFileInfo:
-          final first = mediaFileInfo.segmentList.first;
-          _downloadManager = DownloadManager(
-            url: first.url,
-            path: path.join(videoDir.path, PathUtils.videoNameType1),
-            onReceiveProgress: _onReceive,
-            onDone: _onDone,
-          );
-          break;
-        case Type2 mediaFileInfo:
-          _downloadManager = DownloadManager(
-            url: mediaFileInfo.video.first.baseUrl,
-            path: path.join(videoDir.path, PathUtils.videoNameType2),
-            onReceiveProgress: _onReceive,
-            onDone: _onDone,
-          );
-          final audio = mediaFileInfo.audio;
-          if (audio != null && audio.isNotEmpty) {
-            _audioDownloadManager = DownloadManager(
-              url: audio.first.baseUrl,
-              path: path.join(videoDir.path, PathUtils.audioNameType2),
-              onReceiveProgress: null,
-              onDone: _onAudioDone,
+      if (entry.isAudioOnly) {
+        switch (mediaFileInfo) {
+          case Type2 mediaFileInfo:
+            final audio = mediaFileInfo.audio;
+            if (audio != null && audio.isNotEmpty) {
+              _audioDownloadManager = DownloadManager(
+                url: audio.first.baseUrl,
+                path: path.join(videoDir.path, PathUtils.audioNameType2),
+                onReceiveProgress: _onReceive,
+                onDone: _onAudioDone,
+              );
+            }
+            break;
+          case Type1 mediaFileInfo:
+            final first = mediaFileInfo.segmentList.first;
+            _downloadManager = DownloadManager(
+              url: first.url,
+              path: path.join(videoDir.path, PathUtils.videoNameType1),
+              onReceiveProgress: _onReceive,
+              onDone: _onDone,
             );
-          }
-          late final first = mediaFileInfo.video.first;
-          entry.pageData
-            ?..width = first.width
-            ..height = first.height;
-          entry.ep
-            ?..width = first.width
-            ..height = first.height;
-          _updateBiliDownloadEntryJson(entry);
-          break;
-        default:
-          break;
+            break;
+          default:
+            break;
+        }
+      } else {
+        switch (mediaFileInfo) {
+          case Type1 mediaFileInfo:
+            final first = mediaFileInfo.segmentList.first;
+            _downloadManager = DownloadManager(
+              url: first.url,
+              path: path.join(videoDir.path, PathUtils.videoNameType1),
+              onReceiveProgress: _onReceive,
+              onDone: _onDone,
+            );
+            break;
+          case Type2 mediaFileInfo:
+            _downloadManager = DownloadManager(
+              url: mediaFileInfo.video.first.baseUrl,
+              path: path.join(videoDir.path, PathUtils.videoNameType2),
+              onReceiveProgress: _onReceive,
+              onDone: _onDone,
+            );
+            final audio = mediaFileInfo.audio;
+            if (audio != null && audio.isNotEmpty) {
+              _audioDownloadManager = DownloadManager(
+                url: audio.first.baseUrl,
+                path: path.join(videoDir.path, PathUtils.audioNameType2),
+                onReceiveProgress: null,
+                onDone: _onAudioDone,
+              );
+            }
+            late final first = mediaFileInfo.video.first;
+            entry.pageData
+              ?..width = first.width
+              ..height = first.height;
+            entry.ep
+              ?..width = first.width
+              ..height = first.height;
+            _updateBiliDownloadEntryJson(entry);
+            break;
+          default:
+            break;
+        }
       }
     } catch (e) {
       _updateCurStatus(DownloadStatus.failPlayUrl);
@@ -473,7 +642,11 @@ class DownloadService extends GetxService {
     if (curDownload.value case final curEntryInfo?) {
       curEntryInfo.downloadedBytes = curEntryInfo.totalBytes;
       if (status == DownloadStatus.completed) {
-        _completeDownload();
+        if (curEntryInfo.isAudioOnly) {
+          _convertAudio(curEntryInfo);
+        } else {
+          _completeDownload();
+        }
       } else {
         _updateBiliDownloadEntryJson(curEntryInfo);
       }
@@ -481,9 +654,16 @@ class DownloadService extends GetxService {
   }
 
   void _onAudioDone([Object? error]) {
-    if (_downloadManager?.status == DownloadStatus.completed) {
+    final entry = curDownload.value;
+    if (entry == null) return;
+    if (_downloadManager?.status == DownloadStatus.completed ||
+        entry.isAudioOnly) {
       if (error == null) {
-        _completeDownload();
+        if (entry.isAudioOnly) {
+          _convertAudio(entry);
+        } else {
+          _completeDownload();
+        }
       } else {
         final status = _audioDownloadManager?.status ?? DownloadStatus.pause;
         _updateCurStatus(
@@ -493,6 +673,37 @@ class DownloadService extends GetxService {
         );
       }
     }
+  }
+
+  Future<void> _convertAudio(BiliDownloadEntryInfo entry) async {
+    _updateCurStatus(DownloadStatus.convertingAudio);
+
+    final videoDir = Directory(path.join(entry.entryDirPath, entry.typeTag));
+    final outputPath = path.join(videoDir.path, PathUtils.audioName);
+
+    bool success = false;
+    if (entry.mediaType == 2) {
+      // Type2: m4s -> mp3
+      final inputPath = path.join(videoDir.path, PathUtils.audioNameType2);
+      success = await AudioConverter.convertM4sToMp3(inputPath, outputPath);
+      if (success) {
+        await File(inputPath).tryDel();
+      }
+    } else {
+      // Type1: 0.mp4 -> mp3
+      final inputPath = path.join(videoDir.path, PathUtils.videoNameType1);
+      success = await AudioConverter.extractAudioFromVideo(inputPath, outputPath);
+      if (success) {
+        await File(inputPath).tryDel();
+      }
+    }
+
+    if (!success) {
+      _updateCurStatus(DownloadStatus.failConvertAudio);
+      return;
+    }
+
+    _completeDownload();
   }
 
   Future<void> _completeDownload() async {
