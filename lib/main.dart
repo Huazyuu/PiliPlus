@@ -72,10 +72,7 @@ Future<void> _initDownPath() async {
       downloadPath = defDownloadPath;
     }
   } else if (Platform.isAndroid) {
-    final externalStorageDirPath = (await getExternalStorageDirectory())?.path;
-    downloadPath = externalStorageDirPath != null
-        ? path.join(externalStorageDirPath, PathUtils.downloadDir)
-        : defDownloadPath;
+    downloadPath = '/storage/emulated/0/Download/piliplus';
   } else {
     downloadPath = defDownloadPath;
   }
