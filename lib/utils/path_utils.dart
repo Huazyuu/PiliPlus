@@ -15,7 +15,7 @@ abstract final class PathUtils {
   static const videoNameType1 = '0.mp4';
   static const _fileExt = '.m4s';
   static const audioNameType2 = 'audio$_fileExt';
-  static const audioName = 'audio.mp3';
+  static const audioName = 'audio.m4a';
   static const videoNameType2 = 'video$_fileExt';
   static const coverName = 'cover.jpg';
   static const danmakuName = 'danmaku.pb';

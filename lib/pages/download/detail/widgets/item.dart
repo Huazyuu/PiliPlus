@@ -122,6 +122,10 @@ class DetailItem extends StatelessWidget {
             return;
           }
           if (entry.isCompleted) {
+            if (entry.isAudioOnly) {
+              SmartDialog.showToast('音频文件请在文件管理器中打开');
+              return;
+            }
             await PageUtils.toVideoPage(
               aid: entry.avid,
               cid: cid!,

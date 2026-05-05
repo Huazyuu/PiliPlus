@@ -10,6 +10,11 @@
 .svn/
 migrate_working_dir/
 
+# LLM agent related
+.claude
+.serena
+docs/
+
 # IntelliJ related
 *.iml
 *.ipr

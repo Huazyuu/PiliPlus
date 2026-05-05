@@ -72,6 +72,7 @@ class _DownloadPanelState extends State<DownloadPanel> {
   VideoQuality _quality = VideoQuality.fromCode(Pref.defaultVideoQa);
   AudioQuality _audioQuality = AudioQuality.fromCode(Pref.defaultAudioDownloadQa);
   List<AudioQuality> _availableAudioQualities = [];
+  final Set<int> _audioSelectedIndices = {};
 
   @override
   void initState() {
@@ -93,6 +94,18 @@ class _DownloadPanelState extends State<DownloadPanel> {
               avid: widget.videoDetail?.aid ?? 0,
               bvid: widget.videoDetail?.bvid ?? '',
               isAudioOnly: false,
+              pageData: PageInfo(
+                cid: widget.videoDetail?.cid ?? 0,
+                page: 1,
+                from: null,
+                part: null,
+                vid: null,
+                hasAlias: false,
+                tid: 0,
+                width: 0,
+                height: 0,
+                rotate: 0,
+              ),
             ),
           );
           if (mounted) {
@@ -136,9 +149,11 @@ class _DownloadPanelState extends State<DownloadPanel> {
   Widget _buildHeader(ThemeData theme) {
     final textStyle = TextStyle(color: theme.colorScheme.onSurfaceVariant);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 0, 12),
-      child: Row(
-        spacing: 16,
+      padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           Text(
             '最高画质',
@@ -218,8 +233,7 @@ class _DownloadPanelState extends State<DownloadPanel> {
               ),
             ),
           ),
-          if (kDebugMode || PlatformUtils.isMobile) ...[
-            const Spacer(),
+          if (kDebugMode || PlatformUtils.isMobile)
             StreamBuilder(
               stream: Connectivity().onConnectivityChanged,
               builder: (context, snapshot) {
@@ -232,8 +246,6 @@ class _DownloadPanelState extends State<DownloadPanel> {
                 return const SizedBox.shrink();
               },
             ),
-            const SizedBox(width: 4),
-          ],
         ],
       ),
     );
@@ -531,6 +543,26 @@ class _DownloadPanelState extends State<DownloadPanel> {
                   child: Row(
                     spacing: 10,
                     children: [
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            if (_audioSelectedIndices.contains(index)) {
+                              _audioSelectedIndices.remove(index);
+                            } else {
+                              _audioSelectedIndices.add(index);
+                            }
+                          });
+                        },
+                        child: Icon(
+                          _audioSelectedIndices.contains(index)
+                              ? Icons.check_circle
+                              : Icons.radio_button_unchecked,
+                          size: 20,
+                          color: _audioSelectedIndices.contains(index)
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.outline,
+                        ),
+                      ),
                       if (cover?.isNotEmpty == true)
                         Stack(
                           clipBehavior: Clip.none,
@@ -692,9 +724,14 @@ class _DownloadPanelState extends State<DownloadPanel> {
             ),
           ),
           _buildBottomBtn(
-            text: '下载音频',
+            text: _audioSelectedIndices.isEmpty
+                ? '下载音频'
+                : '下载音频(${_audioSelectedIndices.length})',
             onTap: () {
-              for (int i = 0; i < widget.episodes.length; i++) {
+              final indices = _audioSelectedIndices.isEmpty
+                  ? Iterable<int>.generate(widget.episodes.length)
+                  : _audioSelectedIndices;
+              for (final i in indices) {
                 _onAudioDownload(
                   index: i,
                   episode: widget.episodes[i],

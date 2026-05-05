@@ -23,7 +23,13 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import kotlin.math.roundToInt
 import kotlin.system.exitProcess
+import android.media.MediaCodec
+import android.media.MediaCodecInfo
+import android.media.MediaFormat
+import android.media.MediaExtractor
+import android.media.MediaMuxer
 import java.io.File
+import java.nio.ByteBuffer
 
 class MainActivity : AudioServiceActivity() {
     private lateinit var methodChannel: MethodChannel
@@ -185,6 +191,22 @@ class MainActivity : AudioServiceActivity() {
                     result.success(isFoldable)
                 }
 
+                "convertAudio" -> {
+                    val inputPath = call.argument<String>("inputPath")!!
+                    val outputPath = call.argument<String>("outputPath")!!
+                    android.util.Log.d("PiliPlus", "convertAudio: $inputPath -> $outputPath")
+                    Thread {
+                        try {
+                            val success = convertAudioFile(inputPath, outputPath)
+                            android.util.Log.d("PiliPlus", "convertAudio result: $success")
+                            runOnUiThread { result.success(success) }
+                        } catch (e: Exception) {
+                            android.util.Log.e("PiliPlus", "convertAudio error: ${e.message}", e)
+                            runOnUiThread { result.success(false) }
+                        }
+                    }.start()
+                }
+
                 else -> result.notImplemented()
             }
         }
@@ -245,6 +267,69 @@ class MainActivity : AudioServiceActivity() {
                     packageManager.hasSystemFeature(PackageManager.FEATURE_SENSOR_HINGE_ANGLE)
             } catch (e: Exception) {
             }
+        }
+    }
+
+    private fun convertAudioFile(inputPath: String, outputPath: String): Boolean {
+        val extractor = MediaExtractor()
+        try {
+            extractor.setDataSource(inputPath)
+            android.util.Log.d("PiliPlus", "Tracks: ${extractor.trackCount}")
+
+            // Find audio track
+            var audioTrackIndex = -1
+            var audioFormat: MediaFormat? = null
+            for (i in 0 until extractor.trackCount) {
+                val format = extractor.getTrackFormat(i)
+                val mime = format.getString(MediaFormat.KEY_MIME) ?: continue
+                android.util.Log.d("PiliPlus", "Track $i: mime=$mime")
+                if (mime.startsWith("audio/")) {
+                    audioTrackIndex = i
+                    audioFormat = format
+                }
+            }
+            if (audioTrackIndex < 0 || audioFormat == null) {
+                android.util.Log.e("PiliPlus", "No audio track found")
+                extractor.release()
+                return false
+            }
+            android.util.Log.d("PiliPlus", "Audio track: $audioTrackIndex, format=$audioFormat")
+
+            extractor.selectTrack(audioTrackIndex)
+
+            // Remux: just copy AAC data from fMP4 to regular MP4 (no re-encoding)
+            val muxer = MediaMuxer(outputPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+            val muxerTrackIndex = muxer.addTrack(audioFormat)
+            muxer.start()
+
+            val buffer = ByteBuffer.allocate(1024 * 1024) // 1MB buffer
+            val bufferInfo = MediaCodec.BufferInfo()
+
+            while (true) {
+                buffer.clear()
+                val sampleSize = extractor.readSampleData(buffer, 0)
+                if (sampleSize < 0) break
+
+                bufferInfo.offset = 0
+                bufferInfo.size = sampleSize
+                bufferInfo.presentationTimeUs = extractor.sampleTime
+                bufferInfo.flags = extractor.sampleFlags
+
+                muxer.writeSampleData(muxerTrackIndex, buffer, bufferInfo)
+                extractor.advance()
+            }
+
+            muxer.stop()
+            muxer.release()
+            extractor.release()
+
+            val outputExists = File(outputPath).exists() && File(outputPath).length() > 0
+            android.util.Log.d("PiliPlus", "Output exists: $outputExists, size: ${File(outputPath).length()}")
+            return outputExists
+        } catch (e: Exception) {
+            android.util.Log.e("PiliPlus", "convertAudioFile error: ${e.message}", e)
+            try { extractor.release() } catch (_: Exception) {}
+            return false
         }
     }
 

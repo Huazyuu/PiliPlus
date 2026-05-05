@@ -22,5 +22,6 @@ enum VideoQuality {
 
   static final _codeMap = {for (final i in values) i.code: i};
 
-  static VideoQuality fromCode(int code) => _codeMap[code]!;
+  static VideoQuality fromCode(int code) =>
+      _codeMap[code] ?? VideoQuality.high720;
 }
