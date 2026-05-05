@@ -19,3 +19,8 @@
 
 # Audio service
 -keep class com.ryanheise.audioservice.** { *; }
+
+# Play Core missing classes
+-dontwarn com.google.android.play.core.splitcompat.SplitCompatApplication
+-dontwarn com.google.android.play.core.splitinstall.**
+-dontwarn com.google.android.play.core.tasks.**
