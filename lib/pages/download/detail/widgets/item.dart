@@ -22,6 +22,7 @@ import 'package:PiliPlus/utils/path_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:flutter/material.dart' hide LayoutBuilder;
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 import 'package:path/path.dart' as path;
@@ -210,7 +211,16 @@ class DetailItem extends StatelessWidget {
                       },
                     ),
                   ),
-                  if (entry.videoQuality case final videoQuality?)
+                  if (entry.isAudioOnly)
+                    PBadge(
+                      text: entry.qualityPithyDescription.isNotEmpty
+                          ? entry.qualityPithyDescription
+                          : '音频',
+                      right: 6.0,
+                      top: 6.0,
+                      type: PBadgeType.primary,
+                    )
+                  else if (entry.videoQuality case final videoQuality?)
                     PBadge(
                       text: VideoQuality.fromCode(videoQuality).shortDesc,
                       right: 6.0,
@@ -331,13 +341,27 @@ class DetailItem extends StatelessWidget {
                       Positioned(
                         left: 0,
                         bottom: 0,
-                        child: Text(
-                          '${CacheManager.formatSize(entry.totalBytes)}${entry.ownerName != null ? '  ${entry.ownerName}' : ''}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            height: 1.6,
-                            color: outline,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (entry.isAudioOnly)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 4),
+                                child: Icon(
+                                  FontAwesomeIcons.music,
+                                  size: 12,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
+                            Text(
+                              '${CacheManager.formatSize(entry.totalBytes)}${entry.ownerName != null ? '  ${entry.ownerName}' : ''}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                height: 1.6,
+                                color: outline,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       Positioned(
