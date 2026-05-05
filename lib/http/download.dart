@@ -22,6 +22,8 @@ abstract final class DownloadHttp {
     SourceInfo? source,
     PageInfo? pageData,
     EpInfo? ep,
+    bool audioOnly = false,
+    AudioQuality? audioQuality,
   }) async {
     final isLogin = Accounts.get(AccountType.video).isLogin;
     final res = await VideoHttp.videoUrl(
@@ -41,6 +43,59 @@ abstract final class DownloadHttp {
     if (res case Success(:final response)) {
       final Dash? dash = response.dash;
       if (dash != null) {
+        if (audioOnly) {
+          final List<AudioItem>? audioDashList = dash.audio;
+          if (audioDashList == null || audioDashList.isEmpty) {
+            throw Exception('该内容无音频流');
+          }
+
+          final preferAudioQa = audioQuality?.code ?? Pref.defaultAudioQa;
+          final List<int> audioIds = audioDashList
+              .map((map) => map.id!)
+              .toList();
+          int closestNumber = audioIds.findClosestTarget(
+            (e) => e <= preferAudioQa,
+            (a, b) => a > b ? a : b,
+          );
+          if (!audioIds.contains(preferAudioQa) &&
+              audioIds.any((e) => e > preferAudioQa)) {
+            closestNumber = AudioQuality.k192.code;
+          }
+          final AudioItem audioDash = audioDashList.firstWhere(
+            (e) => e.id == closestNumber,
+            orElse: () => audioDashList.first,
+          );
+          final audioUrl = VideoUtils.getCdnUrl(
+            audioDash.playUrls,
+            isAudio: true,
+          );
+          entry
+            ..typeTag = audioDash.id.toString()
+            ..audioQuality = audioDash.id
+            ..qualityPithyDescription = AudioQuality.fromCode(audioDash.id!).desc;
+
+          return Type2(
+            duration: dash.duration!,
+            video: [],
+            audio: [
+              Type2File(
+                id: audioDash.id!,
+                baseUrl: audioUrl,
+                bandwidth: audioDash.bandWidth!,
+                codecid: audioDash.codecid!,
+                size: 0,
+                md5: '',
+                noRexcode: false,
+                frameRate: audioDash.frameRate ?? '',
+                width: 0,
+                height: 0,
+                dashDrmType: 0,
+              ),
+            ],
+            referer: referer,
+            userAgent: userAgent,
+          );
+        }
         final List<VideoItem> videoList = dash.video!;
         final curHighestVideoQa = videoList.first.quality.code;
         final preferVideoQa = entry.preferedVideoQuality;
@@ -235,5 +290,34 @@ abstract final class DownloadHttp {
     } else {
       throw res.toString();
     }
+  }
+
+  static Future<List<AudioQuality>> getAvailableAudioQualities({
+    required BiliDownloadEntryInfo entry,
+  }) async {
+    final isLogin = Accounts.get(AccountType.video).isLogin;
+    final res = await VideoHttp.videoUrl(
+      avid: entry.avid,
+      bvid: entry.bvid,
+      cid: entry.cid,
+      seasonId: entry.seasonId,
+      qn: 127,
+      tryLook: !isLogin && Pref.p1080,
+      videoType: switch (entry.ep?.from) {
+        'pugv' => VideoType.pugv,
+        != null when isLogin => VideoType.pgc,
+        _ => VideoType.ugc,
+      },
+    );
+    if (res case Success(:final response)) {
+      final Dash? dash = response.dash;
+      if (dash != null && dash.audio != null) {
+        return dash.audio!
+            .map((e) => AudioQuality.fromCode(e.id!))
+            .toSet()
+            .toList();
+      }
+    }
+    return [AudioQuality.k192];
   }
 }
