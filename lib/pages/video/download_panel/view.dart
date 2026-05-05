@@ -6,7 +6,10 @@ import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/common/widgets/stat/stat.dart';
 import 'package:PiliPlus/models/common/badge_type.dart';
 import 'package:PiliPlus/models/common/stat_type.dart';
+import 'package:PiliPlus/http/download.dart';
+import 'package:PiliPlus/models/common/video/audio_quality.dart';
 import 'package:PiliPlus/models/common/video/video_quality.dart';
+import 'package:PiliPlus/models_new/download/bili_download_entry_info.dart';
 import 'package:PiliPlus/models_new/pgc/pgc_info_model/episode.dart' as pgc;
 import 'package:PiliPlus/models_new/pgc/pgc_info_model/result.dart';
 import 'package:PiliPlus/models_new/video/video_detail/data.dart';
@@ -67,10 +70,37 @@ class _DownloadPanelState extends State<DownloadPanel> {
 
   late final cidSet = widget.cidSet;
   VideoQuality _quality = VideoQuality.fromCode(Pref.defaultVideoQa);
+  AudioQuality _audioQuality = AudioQuality.fromCode(Pref.defaultAudioDownloadQa);
+  List<AudioQuality> _availableAudioQualities = [];
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (widget.videoDetail != null || widget.pgcItem != null) {
+        try {
+          final qualities = await DownloadHttp.getAvailableAudioQualities(
+            entry: BiliDownloadEntryInfo(
+              isCompleted: false,
+              totalBytes: 0,
+              downloadedBytes: 0,
+              title: '',
+              cover: '',
+              preferedVideoQuality: 0,
+              guessedTotalBytes: 0,
+              totalTimeMilli: 0,
+              danmakuCount: 0,
+              avid: widget.videoDetail?.aid ?? 0,
+              bvid: widget.videoDetail?.bvid ?? '',
+              isAudioOnly: false,
+            ),
+          );
+          if (mounted) {
+            setState(() => _availableAudioQualities = qualities);
+          }
+        } catch (_) {}
+      }
+    });
     if (widget.index != -1) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _listController.jumpToItem(
@@ -136,6 +166,45 @@ class _DownloadPanelState extends State<DownloadPanel> {
                   children: [
                     Text(
                       _quality.desc,
+                      style: const TextStyle(height: 1),
+                      strutStyle: const StrutStyle(height: 1, leading: 0),
+                    ),
+                    Icon(
+                      size: 18,
+                      Icons.keyboard_arrow_down,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Text(
+            '音频码率',
+            style: textStyle,
+          ),
+          Builder(
+            builder: (context) => PopupMenuButton<AudioQuality>(
+              initialValue: _audioQuality,
+              onSelected: (value) {
+                _audioQuality = value;
+                (context as Element).markNeedsBuild();
+              },
+              itemBuilder: (context) => _availableAudioQualities
+                  .map(
+                    (e) => PopupMenuItem(
+                      value: e,
+                      child: Text(e.desc),
+                    ),
+                  )
+                  .toList(),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _audioQuality.desc,
                       style: const TextStyle(height: 1),
                       strutStyle: const StrutStyle(height: 1, leading: 0),
                     ),
@@ -312,6 +381,59 @@ class _DownloadPanelState extends State<DownloadPanel> {
           break;
       }
       cidSet.add(cid);
+      return true;
+    } catch (e, s) {
+      Utils.reportError(e, s);
+      SmartDialog.showToast(e.toString());
+    }
+    return false;
+  }
+
+  @pragma('vm:notify-debugger-on-exception')
+  bool _onAudioDownload({
+    required int index,
+    required ugc.BaseEpisodeItem episode,
+    ugc.EpisodeItem? parent,
+  }) {
+    final cid = episode.cid;
+    if (cid == null) {
+      SmartDialog.showToast('null cid');
+      return false;
+    }
+
+    if (kReleaseMode && episode.badge == '会员' && Accounts.mainEqVideo) {
+      if (vipStatus != 1) {
+        SmartDialog.showToast('需要大会员');
+        return false;
+      }
+    }
+
+    try {
+      switch (episode) {
+        case Part part:
+          _downloadService.downloadAudio(
+            page: part,
+            videoDetail: parent == null ? widget.videoDetail : null,
+            videoArc: parent,
+            audioQuality: _audioQuality,
+          );
+          break;
+        case ugc.EpisodeItem episode:
+          _downloadService.downloadAudio(
+            page: episode.pages!.first,
+            videoArc: episode,
+            audioQuality: _audioQuality,
+          );
+          break;
+        case pgc.EpisodeItem episode:
+          _downloadService.downloadAudioBangumi(
+            index: index,
+            pgcItem: widget.pgcItem!,
+            episode: episode,
+            audioQuality: _audioQuality,
+          );
+          break;
+      }
       return true;
     } catch (e, s) {
       Utils.reportError(e, s);
@@ -557,6 +679,25 @@ class _DownloadPanelState extends State<DownloadPanel> {
                   if (mounted) setState(() {});
                 },
               );
+            },
+          ),
+          SizedBox(
+            height: 20,
+            child: VerticalDivider(
+              width: 1,
+              color: dividerColor,
+            ),
+          ),
+          _buildBottomBtn(
+            text: '下载音频',
+            onTap: () {
+              for (int i = 0; i < widget.episodes.length; i++) {
+                _onAudioDownload(
+                  index: i,
+                  episode: widget.episodes[i],
+                );
+              }
+              if (mounted) setState(() {});
             },
           ),
           SizedBox(
