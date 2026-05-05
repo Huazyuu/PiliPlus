@@ -1,5 +1,5 @@
-import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
-import 'package:ffmpeg_kit_flutter/return_code.dart';
+import 'package:ffmpeg_kit_flutter_min/ffmpeg_kit.dart';
+import 'package:ffmpeg_kit_flutter_min/return_code.dart';
 
 abstract final class AudioConverter {
   static Future<bool> convertM4sToMp3(
