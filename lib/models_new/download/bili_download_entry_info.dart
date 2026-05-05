@@ -37,6 +37,9 @@ class BiliDownloadEntryInfo with MultiSelectData {
   final String? seasonId;
   final SourceInfo? source;
   EpInfo? ep;
+  bool isAudioOnly;
+  int? audioQuality;
+  String? audioPath;
 
   late String pageDirPath;
   late String entryDirPath;
@@ -162,6 +165,9 @@ class BiliDownloadEntryInfo with MultiSelectData {
     this.seasonId,
     this.source,
     this.ep,
+    this.isAudioOnly = false,
+    this.audioQuality,
+    this.audioPath,
   });
 
   factory BiliDownloadEntryInfo.fromJson(Map<String, dynamic> json) =>
@@ -197,6 +203,9 @@ class BiliDownloadEntryInfo with MultiSelectData {
         source: json['source'] != null
             ? SourceInfo.fromJson(json['source'] as Map<String, dynamic>)
             : null,
+        isAudioOnly: json['is_audio_only'] as bool? ?? false,
+        audioQuality: json['audio_quality'] as int?,
+        audioPath: json['audio_path'] as String?,
         ep: json['ep'] != null
             ? EpInfo.fromJson(json['ep'] as Map<String, dynamic>)
             : null,
@@ -230,6 +239,9 @@ class BiliDownloadEntryInfo with MultiSelectData {
     'season_id': ?seasonId,
     'source': ?source?.toJson(),
     'ep': ?ep?.toJson(),
+    'is_audio_only': isAudioOnly,
+    'audio_quality': ?audioQuality,
+    'audio_path': ?audioPath,
   };
 
   @override
@@ -418,6 +430,8 @@ enum DownloadStatus {
   failDownloadAudio('音频下载失败'),
   failDanmaku('获取弹幕失败'),
   failPlayUrl('获取播放地址失败'),
+  convertingAudio('正在转换音频'),
+  failConvertAudio('音频转换失败'),
   pause('暂停中'),
   wait('等待中'),
   ;

@@ -948,6 +948,15 @@ abstract final class Pref {
 
   static String? get downloadPath => _setting.get(SettingBoxKey.downloadPath);
 
+  static int get defaultAudioDownloadQa => _setting.get(
+    SettingBoxKey.defaultAudioDownloadQa,
+    defaultValue: AudioQuality.k192.code,
+  );
+
+  static String? get audioDownloadPath => _setting.get(
+    SettingBoxKey.audioDownloadPath,
+  );
+
   static String? get liveCdnUrl => _setting.get(SettingBoxKey.liveCdnUrl);
 
   static bool get showBatteryLevel => _setting.get(

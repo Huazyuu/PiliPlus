@@ -146,6 +146,8 @@ abstract final class SettingBoxKey {
       enableTapDm = 'enableTapDm',
       setSystemBrightness = 'setSystemBrightness',
       downloadPath = 'downloadPath',
+      defaultAudioDownloadQa = 'defaultAudioDownloadQa',
+      audioDownloadPath = 'audioDownloadPath',
       followOrderType = 'followOrderType',
       enableImgMenu = 'enableImgMenu',
       showDynDispute = 'showDynDispute',
