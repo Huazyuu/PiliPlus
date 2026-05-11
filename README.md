@@ -1,7 +1,6 @@
 <div align="center">
     <img width="200" height="200" src="assets/images/logo/logo.png">
 </div>
-[..](..)
 
 
 <div align="center">
@@ -21,12 +20,13 @@
 <img src="assets/screenshots/main_screen.png" width="96%" alt="home" />
 <br/>
 </div>
-
-音频下载支持同时输出 m4a 和 mp3 格式
-使用 LAME 编码器进行 AAC → MP3 转换
-Android 默认下载路径改为 /storage/emulated/0/Download/piliplus
-
 <br/>
+
+个人修改feat：
+feat只支持安卓端
+音频下载支持同时输出 m4a 和 mp3 格式<br/>
+使用 LAME 编码器进行 AAC → MP3 转换<br/>
+Android 默认下载路径改为 /storage/emulated/0/Download/piliplus<br/>
 
 ## 适配平台
 
