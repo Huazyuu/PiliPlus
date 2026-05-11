@@ -22,6 +22,9 @@
 <br/>
 </div>
 
+音频下载支持同时输出 m4a 和 mp3 格式
+使用 LAME 编码器进行 AAC → MP3 转换
+Android 默认下载路径改为 /storage/emulated/0/Download/piliplus
 
 <br/>
 
